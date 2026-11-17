@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Novaborn Bot</string>
+    <string name="accessibility_service_label">Novaborn Bot Gestures</string>
+    <string name="accessibility_service_description">Allows Novaborn Bot to dispatch screen taps and virtual joystick swipes (attack, collect, config switch, and orbital kiting) for Pixel Universe: Novaborn without root.</string>
+    <string name="notification_channel_name">Novaborn Bot HUD</string>
+    <string name="notification_channel_description">Keeps the floating overlay and MediaProjection screen capture active for Gemini vision analysis.</string>
+    <string name="notification_title">Novaborn Bot Active</string>
+    <string name="notification_text">Floating overlay and screen capture ready.</string>
+    <string name="overlay_title">NOVABORN AI</string>
+    <string name="overlay_target_label">Target Alien</string>
+    <string name="overlay_collect_key_boxes">Collect Key Loot Boxes</string>
+    <string name="overlay_btn_start">Start Bot</string>
+    <string name="overlay_btn_pause">Pause Bot</string>
+    <string name="overlay_status_idle">Status: Idle (Ready)</string>
+    <string name="overlay_btn_minimize_desc">Minimize or expand overlay</string>
+    <string name="overlay_btn_close_desc">Close floating overlay</string>
+</resources>

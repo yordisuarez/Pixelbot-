@@ -1,0 +1,8 @@
+{
+  "name": "Novaborn Bot",
+  "description": "Autonomous vision-guided overlay bot for Pixel Universe: Novaborn powered by Gemini AI, MediaProjection, and Accessibility gestures.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
