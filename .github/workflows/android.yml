@@ -29,11 +29,11 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload Release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: bot-novaborn-release-apk
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          path: path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
