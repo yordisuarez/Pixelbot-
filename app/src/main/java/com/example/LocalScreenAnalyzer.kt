@@ -39,9 +39,6 @@ class LocalScreenAnalyzer {
         val pixelHits: Int,
     )
 
-    private var patrolAngleRad = 0.0
-    private var combatOrbitPhaseRad = 0.0
-
     fun analyzeFrame(
         frame: Bitmap,
         targetMap: String,
@@ -258,7 +255,7 @@ class LocalScreenAnalyzer {
             )
         }
 
-        patrolAngleRad = (patrolAngleRad + 0.14) % (Math.PI * 2.0)
+        val patrolAngleRad = ((System.currentTimeMillis() % 6000L) / 6000.0) * (Math.PI * 2.0)
         val patrolDx = (cos(patrolAngleRad) * 80.0).roundToInt().coerceIn(-100, 100)
         val patrolDy = (sin(patrolAngleRad) * 80.0).roundToInt().coerceIn(-100, 100)
         return BotDecision(
@@ -493,20 +490,21 @@ class LocalScreenAnalyzer {
         relY: Float,
         distance: Float,
     ): Pair<Int, Int> {
-        // Advance circular kiting phase angle so the ship sweeps smoothly in circles
-        combatOrbitPhaseRad = (combatOrbitPhaseRad + 0.35) % (Math.PI * 2.0)
+        // Time-based circular orbit phase (full 360-degree sweep every 3.6 seconds)
+        val orbitPeriodMs = 3600L
+        val timePhaseRad = ((System.currentTimeMillis() % orbitPeriodMs) / orbitPeriodMs.toDouble()) * (Math.PI * 2.0)
 
         if (distance < 0.001f) {
-            val dx = (cos(combatOrbitPhaseRad) * 90.0).roundToInt().coerceIn(-100, 100)
-            val dy = (sin(combatOrbitPhaseRad) * 90.0).roundToInt().coerceIn(-100, 100)
+            val dx = (cos(timePhaseRad) * 92.0).roundToInt().coerceIn(-100, 100)
+            val dy = (sin(timePhaseRad) * 92.0).roundToInt().coerceIn(-100, 100)
             return dx to dy
         }
 
-        // Base angle from ship toward enemy; add +90° (PI/2) for perpendicular circular orbit
-        // plus a slight sine/cosine wobble and radial distance correction to hold safe firing radius
+        // Perpendicular tangent to the enemy vector + time-based sine/cosine orbit sweep
+        // and radial correction to keep the ship at an optimal kiting radius
         val angleToEnemy = atan2(relY.toDouble(), relX.toDouble())
         val radialError = ((distance - IDEAL_ORBIT_RADIUS) / 0.15f).coerceIn(-1f, 1f)
-        val tangentAngle = angleToEnemy + (Math.PI / 2.0) - (radialError * 0.45) + (sin(combatOrbitPhaseRad) * 0.12)
+        val tangentAngle = angleToEnemy + (Math.PI / 2.0) - (radialError * 0.45) + (sin(timePhaseRad) * 0.25)
 
         val dx = (cos(tangentAngle) * 92.0).roundToInt().coerceIn(-100, 100)
         val dy = (sin(tangentAngle) * 92.0).roundToInt().coerceIn(-100, 100)
