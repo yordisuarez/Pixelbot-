@@ -7,8 +7,9 @@
     <string name="notification_title">Novaborn Bot Active</string>
     <string name="notification_text">Floating overlay and local pixel scanner ready.</string>
     <string name="overlay_title">NOVABORN BOT</string>
+    <string name="overlay_map_label">Map</string>
     <string name="overlay_target_label">Target Alien</string>
-    <string name="overlay_collect_key_boxes">Collect Key Loot Boxes</string>
+    <string name="overlay_collect_key_boxes">Collect Key Boxes</string>
     <string name="overlay_btn_start">Start Bot</string>
     <string name="overlay_btn_pause">Pause Bot</string>
     <string name="overlay_status_idle">Status: Idle (Ready)</string>

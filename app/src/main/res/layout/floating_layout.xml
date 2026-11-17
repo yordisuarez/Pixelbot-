@@ -97,6 +97,24 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="4dp"
+                android:text="@string/overlay_map_label"
+                android:textColor="#FF94A3B8"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <Spinner
+                android:id="@+id/spinner_map_target"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_floating_spinner"
+                android:popupBackground="#FF131B30"
+                android:spinnerMode="dropdown" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
                 android:text="@string/overlay_target_label"
                 android:textColor="#FF94A3B8"
                 android:textSize="11sp"

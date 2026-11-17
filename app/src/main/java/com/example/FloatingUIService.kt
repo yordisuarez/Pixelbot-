@@ -75,6 +75,7 @@ class FloatingUIService : Service() {
     private var minimizedPill: LinearLayout? = null
     private var expandedPanel: LinearLayout? = null
     private var pillIndicator: View? = null
+    private var mapSpinner: Spinner? = null
     private var alienSpinner: Spinner? = null
     private var keyBoxCheckBox: CheckBox? = null
     private var toggleBotButton: Button? = null
@@ -275,6 +276,7 @@ class FloatingUIService : Service() {
         minimizedPill = root.findViewById(R.id.layout_minimized_pill)
         expandedPanel = root.findViewById(R.id.layout_expanded_panel)
         pillIndicator = root.findViewById(R.id.view_pill_indicator)
+        mapSpinner = root.findViewById(R.id.spinner_map_target)
         alienSpinner = root.findViewById(R.id.spinner_alien_target)
         keyBoxCheckBox = root.findViewById(R.id.checkbox_collect_key_boxes)
         toggleBotButton = root.findViewById(R.id.btn_toggle_bot)
@@ -284,18 +286,42 @@ class FloatingUIService : Service() {
         val minimizeBtn = root.findViewById<ImageButton>(R.id.btn_minimize_expand)
         val closeBtn = root.findViewById<ImageButton>(R.id.btn_close_overlay)
 
-        val adapter = ArrayAdapter(
+        val mapAdapter = ArrayAdapter(
+            this,
+            R.layout.item_spinner_alien,
+            MAP_TARGETS,
+        )
+        mapAdapter.setDropDownViewResource(R.layout.item_spinner_alien)
+        mapSpinner?.adapter = mapAdapter
+
+        val alienAdapter = ArrayAdapter(
             this,
             R.layout.item_spinner_alien,
             ALIEN_TARGETS,
         )
-        adapter.setDropDownViewResource(R.layout.item_spinner_alien)
-        alienSpinner?.adapter = adapter
+        alienAdapter.setDropDownViewResource(R.layout.item_spinner_alien)
+        alienSpinner?.adapter = alienAdapter
 
         val initialState = BotStateRepository.state.value
+        val initialMapIdx = MAP_TARGETS.indexOf(initialState.targetMap).coerceAtLeast(0)
+        mapSpinner?.setSelection(initialMapIdx, false)
         val initialIdx = ALIEN_TARGETS.indexOf(initialState.targetAlien).coerceAtLeast(0)
         alienSpinner?.setSelection(initialIdx, false)
         keyBoxCheckBox?.isChecked = initialState.collectKeyBoxes
+
+        mapSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: View?,
+                position: Int,
+                id: Long,
+            ) {
+                val chosenMap = MAP_TARGETS.getOrElse(position) { MAP_TARGETS.first() }
+                BotStateRepository.setTargetMap(this@FloatingUIService, chosenMap)
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
+        }
 
         alienSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(
@@ -434,6 +460,7 @@ class FloatingUIService : Service() {
                     withContext(Dispatchers.Default) {
                         screenAnalyzer.analyzeFrame(
                             frame = frameBitmap,
+                            targetMap = snapshotState.targetMap,
                             targetAlien = snapshotState.targetAlien,
                             collectKeyBoxes = snapshotState.collectKeyBoxes,
                             currentConfig = activeShipConfig,

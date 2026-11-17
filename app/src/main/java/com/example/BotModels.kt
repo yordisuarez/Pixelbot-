@@ -6,6 +6,24 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+// Customize this list with your exact Pixel Universe: Novaborn map names
+val MAP_TARGETS = listOf(
+    "Any Map",
+    "1-1",
+    "1-2",
+    "1-3",
+    "1-4",
+    "2-1",
+    "2-2",
+    "2-3",
+    "2-4",
+    "3-1",
+    "3-2",
+    "3-3",
+    "4-1 (PvP)",
+)
+
+// Customize this list with your exact target alien names
 val ALIEN_TARGETS = listOf(
     "Any",
     "Cube",
@@ -42,6 +60,7 @@ data class HudCalibration(
 )
 
 data class BotRuntimeState(
+    val targetMap: String = MAP_TARGETS.first(),
     val targetAlien: String = ALIEN_TARGETS.first(),
     val collectKeyBoxes: Boolean = false,
     val isOverlayRunning: Boolean = false,
@@ -56,6 +75,7 @@ data class BotRuntimeState(
 
 object BotStateRepository {
     private const val PREFS_NAME = "novaborn_bot_prefs"
+    private const val KEY_TARGET_MAP = "target_map"
     private const val KEY_TARGET_ALIEN = "target_alien"
     private const val KEY_COLLECT_KEY_BOXES = "collect_key_boxes"
     private const val KEY_JOYSTICK_X = "cal_joystick_x"
@@ -72,6 +92,7 @@ object BotStateRepository {
 
     fun loadPreferences(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val map = prefs.getString(KEY_TARGET_MAP, MAP_TARGETS.first()) ?: MAP_TARGETS.first()
         val alien = prefs.getString(KEY_TARGET_ALIEN, ALIEN_TARGETS.first()) ?: ALIEN_TARGETS.first()
         val collectKey = prefs.getBoolean(KEY_COLLECT_KEY_BOXES, false)
         val cal = HudCalibration(
@@ -86,11 +107,21 @@ object BotStateRepository {
         )
         _state.update {
             it.copy(
+                targetMap = if (map in MAP_TARGETS) map else MAP_TARGETS.first(),
                 targetAlien = if (alien in ALIEN_TARGETS) alien else ALIEN_TARGETS.first(),
                 collectKeyBoxes = collectKey,
                 calibration = cal,
             )
         }
+    }
+
+    fun setTargetMap(context: Context, map: String) {
+        val valid = if (map in MAP_TARGETS) map else MAP_TARGETS.first()
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_TARGET_MAP, valid)
+            .apply()
+        _state.update { it.copy(targetMap = valid) }
     }
 
     fun setTargetAlien(context: Context, alien: String) {

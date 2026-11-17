@@ -53,6 +53,10 @@ class BotControlViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun setTargetMap(map: String) {
+        BotStateRepository.setTargetMap(getApplication(), map)
+    }
+
     fun setTargetAlien(alien: String) {
         BotStateRepository.setTargetAlien(getApplication(), alien)
     }

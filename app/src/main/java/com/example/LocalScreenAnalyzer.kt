@@ -40,9 +40,11 @@ class LocalScreenAnalyzer {
     )
 
     private var patrolAngleRad = 0.0
+    private var combatOrbitPhaseRad = 0.0
 
     fun analyzeFrame(
         frame: Bitmap,
+        targetMap: String,
         targetAlien: String,
         collectKeyBoxes: Boolean,
         currentConfig: Int,
@@ -66,7 +68,8 @@ class LocalScreenAnalyzer {
         frame.getPixels(pixels, 0, width, 0, 0, width, height)
 
         // 1. Check minimap (top-right) for red radiation border proximity
-        val radiationVector = detectMinimapRadiationEvasion(pixels, width, height)
+        val safeMargin = if (targetMap.contains("PvP", ignoreCase = true)) 0.22f else 0.18f
+        val radiationVector = detectMinimapRadiationEvasion(pixels, width, height, safeMargin)
         if (radiationVector != null) {
             if (currentConfig != 1) {
                 return BotDecision(
@@ -266,7 +269,7 @@ class LocalScreenAnalyzer {
             atacar = false,
             recoger = false,
             esperarCajaLlave = false,
-            razon = "Patrolling sector in Config 1 searching for '$targetAlien'",
+            razon = "Patrolling [$targetMap] in Config 1 searching for '$targetAlien'",
         )
     }
 
@@ -274,6 +277,7 @@ class LocalScreenAnalyzer {
         pixels: IntArray,
         width: Int,
         height: Int,
+        edgeMargin: Float,
     ): Pair<Int, Int>? {
         val xStart = (width * MINIMAP_LEFT).toInt().coerceIn(0, width - 1)
         val xEnd = (width * MINIMAP_RIGHT).toInt().coerceIn(xStart + 1, width)
@@ -311,8 +315,11 @@ class LocalScreenAnalyzer {
         val shipNormX = shipSumX / shipCount
         val shipNormY = shipSumY / shipCount
 
-        // Check if ship is inside outer 18% margin of minimap OR adjacent to red radiation pixels
-        val nearEdge = shipNormX < 0.18f || shipNormX > 0.82f || shipNormY < 0.18f || shipNormY > 0.82f
+        // Check if ship is inside outer margin of minimap OR adjacent to red radiation pixels
+        val nearEdge = shipNormX < edgeMargin ||
+            shipNormX > (1f - edgeMargin) ||
+            shipNormY < edgeMargin ||
+            shipNormY > (1f - edgeMargin)
         if (!nearEdge) {
             // Sample small window around ship blip for red radiation border pixels
             val shipPxX = xStart + (shipNormX * mapW).toInt()
@@ -486,26 +493,23 @@ class LocalScreenAnalyzer {
         relY: Float,
         distance: Float,
     ): Pair<Int, Int> {
-        if (distance < 0.001f) return 85 to 0
+        // Advance circular kiting phase angle so the ship sweeps smoothly in circles
+        combatOrbitPhaseRad = (combatOrbitPhaseRad + 0.35) % (Math.PI * 2.0)
 
-        // Unit radial vector pointing from ship toward enemy
-        val ux = relX / distance
-        val uy = relY / distance
+        if (distance < 0.001f) {
+            val dx = (cos(combatOrbitPhaseRad) * 90.0).roundToInt().coerceIn(-100, 100)
+            val dy = (sin(combatOrbitPhaseRad) * 90.0).roundToInt().coerceIn(-100, 100)
+            return dx to dy
+        }
 
-        // Perpendicular tangential vector for circular kiting (-uy, ux)
-        val tx = -uy
-        val ty = ux
+        // Base angle from ship toward enemy; add +90° (PI/2) for perpendicular circular orbit
+        // plus a slight sine/cosine wobble and radial distance correction to hold safe firing radius
+        val angleToEnemy = atan2(relY.toDouble(), relX.toDouble())
+        val radialError = ((distance - IDEAL_ORBIT_RADIUS) / 0.15f).coerceIn(-1f, 1f)
+        val tangentAngle = angleToEnemy + (Math.PI / 2.0) - (radialError * 0.45) + (sin(combatOrbitPhaseRad) * 0.12)
 
-        // Radial correction keeps ship at IDEAL_ORBIT_RADIUS without drifting too close or far
-        val radialError = (distance - IDEAL_ORBIT_RADIUS).coerceIn(-0.15f, 0.15f)
-        val radialGain = (radialError / 0.15f) * 0.45f
-
-        val combinedX = tx + ux * radialGain
-        val combinedY = ty + uy * radialGain
-        val norm = hypot(combinedX, combinedY).coerceAtLeast(0.001f)
-
-        val dx = ((combinedX / norm) * 90f).roundToInt().coerceIn(-100, 100)
-        val dy = ((combinedY / norm) * 90f).roundToInt().coerceIn(-100, 100)
+        val dx = (cos(tangentAngle) * 92.0).roundToInt().coerceIn(-100, 100)
+        val dy = (sin(tangentAngle) * 92.0).roundToInt().coerceIn(-100, 100)
         return dx to dy
     }
 

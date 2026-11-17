@@ -295,6 +295,43 @@ fun NovabornControlDeck(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Text(
+                            text = "Target Map",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            MAP_TARGETS.forEach { map ->
+                                val selected = botState.targetMap == map
+                                FilterChip(
+                                    selected = selected,
+                                    onClick = { viewModel.setTargetMap(map) },
+                                    modifier = Modifier.testTag("chip_map_${map.lowercase().replace(" ", "_")}"),
+                                    label = {
+                                        Text(
+                                            text = map,
+                                            style = MaterialTheme.typography.labelLarge,
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = PulseViolet.copy(alpha = 0.25f),
+                                        selectedLabelColor = ElectricCyan,
+                                        containerColor = TacticalSurfaceElevated,
+                                        labelColor = TextSecondary,
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = selected,
+                                        selectedBorderColor = PulseViolet,
+                                        borderColor = OutlineSubtle,
+                                    ),
+                                )
+                            }
+                        }
+
+                        Text(
                             text = "Target Alien",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -345,7 +382,7 @@ fun NovabornControlDeck(
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Collect Key Loot Boxes",
+                                    text = "Collect Key Boxes",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
