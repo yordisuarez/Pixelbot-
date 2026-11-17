@@ -43,5 +43,6 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     // Cero dependencias de internet, Gemini o Firebase. Todo es local.
+implementation("androidx.compose.material:material-icons-extended")
 }
 
