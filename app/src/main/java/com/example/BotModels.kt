@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-// Customize this list with your exact Pixel Universe: Novaborn map names
+// [ESCRIBE_TUS_MAPAS_AQUI] — Customize with your exact Pixel Universe: Novaborn map names
 val MAP_TARGETS = listOf(
     "Any Map",
     "1-1",
@@ -23,7 +23,7 @@ val MAP_TARGETS = listOf(
     "4-1 (PvP)",
 )
 
-// Customize this list with your exact target alien names
+// [ESCRIBE_TUS_ALIENS_AQUI] — Customize with your exact target alien names
 val ALIEN_TARGETS = listOf(
     "Any",
     "Cube",
@@ -40,11 +40,14 @@ val ALIEN_TARGETS = listOf(
 data class BotDecision(
     val accion: String,
     val config: Int,
-    val dx: Int,
-    val dy: Int,
-    val atacar: Boolean,
-    val recoger: Boolean,
-    val esperarCajaLlave: Boolean,
+    val dx: Int = 0,
+    val dy: Int = 0,
+    val tapX: Float? = null,
+    val tapY: Float? = null,
+    val tapAttackOnce: Boolean = false,
+    val willContinue: Boolean = false,
+    val releaseJoystick: Boolean = false,
+    val esperarCajaLlave: Boolean = false,
     val razon: String,
 )
 
@@ -63,6 +66,7 @@ data class BotRuntimeState(
     val targetMap: String = MAP_TARGETS.first(),
     val targetAlien: String = ALIEN_TARGETS.first(),
     val collectKeyBoxes: Boolean = false,
+    val attackAliens: Boolean = true,
     val isOverlayRunning: Boolean = false,
     val isBotActive: Boolean = false,
     val hasMediaProjection: Boolean = false,
@@ -78,6 +82,7 @@ object BotStateRepository {
     private const val KEY_TARGET_MAP = "target_map"
     private const val KEY_TARGET_ALIEN = "target_alien"
     private const val KEY_COLLECT_KEY_BOXES = "collect_key_boxes"
+    private const val KEY_ATTACK_ALIENS = "attack_aliens"
     private const val KEY_JOYSTICK_X = "cal_joystick_x"
     private const val KEY_JOYSTICK_Y = "cal_joystick_y"
     private const val KEY_ATTACK_X = "cal_attack_x"
@@ -95,6 +100,7 @@ object BotStateRepository {
         val map = prefs.getString(KEY_TARGET_MAP, MAP_TARGETS.first()) ?: MAP_TARGETS.first()
         val alien = prefs.getString(KEY_TARGET_ALIEN, ALIEN_TARGETS.first()) ?: ALIEN_TARGETS.first()
         val collectKey = prefs.getBoolean(KEY_COLLECT_KEY_BOXES, false)
+        val attackAliens = prefs.getBoolean(KEY_ATTACK_ALIENS, true)
         val cal = HudCalibration(
             joystickCenterX = prefs.getFloat(KEY_JOYSTICK_X, 0.16f),
             joystickCenterY = prefs.getFloat(KEY_JOYSTICK_Y, 0.72f),
@@ -110,6 +116,7 @@ object BotStateRepository {
                 targetMap = if (map in MAP_TARGETS) map else MAP_TARGETS.first(),
                 targetAlien = if (alien in ALIEN_TARGETS) alien else ALIEN_TARGETS.first(),
                 collectKeyBoxes = collectKey,
+                attackAliens = attackAliens,
                 calibration = cal,
             )
         }
@@ -139,6 +146,14 @@ object BotStateRepository {
             .putBoolean(KEY_COLLECT_KEY_BOXES, enabled)
             .apply()
         _state.update { it.copy(collectKeyBoxes = enabled) }
+    }
+
+    fun setAttackAliens(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ATTACK_ALIENS, enabled)
+            .apply()
+        _state.update { it.copy(attackAliens = enabled) }
     }
 
     fun updateCalibration(context: Context, calibration: HudCalibration) {

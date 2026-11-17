@@ -3,6 +3,7 @@ package com.example
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.graphics.Path
+import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import kotlinx.coroutines.CompletableDeferred
@@ -15,8 +16,7 @@ class BotAccessibilityService : AccessibilityService() {
     companion object {
         private const val TAG = "BotAccessibilitySvc"
         private const val TAP_DURATION_MS = 45L
-        private const val JOYSTICK_SWIPE_DURATION_MS = 140L
-        private const val ORBIT_SWIPE_DURATION_MS = 180L
+        private const val JOYSTICK_STEP_DURATION_MS = 120L
         private const val KEY_BOX_WAIT_MS = 3200L
 
         @Volatile
@@ -27,6 +27,10 @@ class BotAccessibilityService : AccessibilityService() {
         val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
     }
 
+    private var activeJoystickStroke: GestureDescription.StrokeDescription? = null
+    private var lastJoystickX: Float = 0f
+    private var lastJoystickY: Float = 0f
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
@@ -35,64 +39,99 @@ class BotAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // No event inspection needed; gestures are dispatched on demand by FloatingUIService.
+        // Gestures are dispatched on demand by FloatingUIService.
     }
 
     override fun onInterrupt() {
+        activeJoystickStroke = null
         Log.w(TAG, "BotAccessibilityService interrumpido.")
     }
 
     override fun onDestroy() {
+        activeJoystickStroke = null
         instance = null
         _isConnected.value = false
         super.onDestroy()
+    }
+
+    suspend fun releaseContinuousJoystick() {
+        val currentStroke = activeJoystickStroke ?: return
+        activeJoystickStroke = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val releasePath = Path().apply {
+                    moveTo(lastJoystickX, lastJoystickY)
+                    lineTo(lastJoystickX, lastJoystickY)
+                }
+                val endStroke = currentStroke.continueStroke(releasePath, 0L, 20L, false)
+                dispatchGestureSuspend(GestureDescription.Builder().addStroke(endStroke).build())
+            } catch (e: Exception) {
+                Log.w(TAG, "Error liberando joystick continuo: ${e.message}")
+            }
+        }
     }
 
     suspend fun executeDecision(
         decision: BotDecision,
         calibration: HudCalibration,
     ): Long {
-        var extraDelayMs = 0L
-        when (decision.accion) {
-            "cambiar_config" -> {
+        if (decision.releaseJoystick) {
+            releaseContinuousJoystick()
+        }
+
+        return when (decision.accion) {
+            "cambiar_config", "fin_combate" -> {
                 tapProportional(calibration.configButtonX, calibration.configButtonY)
+                0L
             }
-            "atacar" -> {
-                tapProportional(calibration.attackButtonX, calibration.attackButtonY)
-                // Execute orbital kiting joystick vector if provided during combat
-                if (decision.dx != 0 || decision.dy != 0) {
-                    dragJoystick(
-                        centerXRatio = calibration.joystickCenterX,
-                        centerYRatio = calibration.joystickCenterY,
-                        dx = decision.dx,
-                        dy = decision.dy,
-                        durationMs = ORBIT_SWIPE_DURATION_MS,
-                    )
-                }
-            }
-            "recoger" -> {
-                tapProportional(calibration.collectButtonX, calibration.collectButtonY)
-                if (decision.esperarCajaLlave) {
-                    extraDelayMs = KEY_BOX_WAIT_MS
-                }
-            }
-            "mover" -> {
-                if (decision.atacar) {
-                    tapProportional(calibration.attackButtonX, calibration.attackButtonY)
-                }
-                dragJoystick(
+
+            "evadir", "roam", "kitear" -> {
+                updateContinuousJoystick(
                     centerXRatio = calibration.joystickCenterX,
                     centerYRatio = calibration.joystickCenterY,
                     dx = decision.dx,
                     dy = decision.dy,
-                    durationMs = if (decision.atacar) ORBIT_SWIPE_DURATION_MS else JOYSTICK_SWIPE_DURATION_MS,
+                    willContinue = decision.willContinue,
                 )
+                0L
             }
+
+            "atacar_y_kitear" -> {
+                // Ensure any previous continuous stroke is released before single-tap attack
+                releaseContinuousJoystick()
+                if (decision.tapAttackOnce) {
+                    tapProportional(calibration.attackButtonX, calibration.attackButtonY)
+                }
+                // Immediately engage continuous kiting stroke (willContinue = true)
+                updateContinuousJoystick(
+                    centerXRatio = calibration.joystickCenterX,
+                    centerYRatio = calibration.joystickCenterY,
+                    dx = decision.dx,
+                    dy = decision.dy,
+                    willContinue = true,
+                )
+                0L
+            }
+
+            "recoger_caja_libre" -> {
+                val tx = decision.tapX ?: calibration.collectButtonX
+                val ty = decision.tapY ?: calibration.collectButtonY
+                tapProportional(tx, ty)
+                0L
+            }
+
+            "recoger_caja_llave" -> {
+                val tx = decision.tapX ?: calibration.collectButtonX
+                val ty = decision.tapY ?: calibration.collectButtonY
+                tapProportional(tx, ty)
+                if (decision.esperarCajaLlave) KEY_BOX_WAIT_MS else 0L
+            }
+
             else -> {
                 Log.w(TAG, "Acción no reconocida: ${decision.accion}")
+                0L
             }
         }
-        return extraDelayMs
     }
 
     suspend fun tapProportional(xRatio: Float, yRatio: Float): Boolean {
@@ -108,35 +147,71 @@ class BotAccessibilityService : AccessibilityService() {
         return dispatchGestureSuspend(gesture)
     }
 
-    suspend fun dragJoystick(
+    suspend fun updateContinuousJoystick(
         centerXRatio: Float,
         centerYRatio: Float,
         dx: Int,
         dy: Int,
-        durationMs: Long = JOYSTICK_SWIPE_DURATION_MS,
+        willContinue: Boolean,
+        durationMs: Long = JOYSTICK_STEP_DURATION_MS,
     ): Boolean {
         val metrics = resources.displayMetrics
         val width = metrics.widthPixels.toFloat()
         val height = metrics.heightPixels.toFloat()
 
-        val startX = width * centerXRatio.coerceIn(0.05f, 0.95f)
-        val startY = height * centerYRatio.coerceIn(0.05f, 0.95f)
+        val centerX = width * centerXRatio.coerceIn(0.05f, 0.95f)
+        val centerY = height * centerYRatio.coerceIn(0.05f, 0.95f)
 
-        // Scale normalized -100..100 offset to a responsive joystick throw radius (~14% of min dimension)
         val maxRadiusPx = minOf(width, height) * 0.14f
         val deltaX = (dx.coerceIn(-100, 100) / 100f) * maxRadiusPx
         val deltaY = (dy.coerceIn(-100, 100) / 100f) * maxRadiusPx
 
-        val endX = (startX + deltaX).coerceIn(1f, width - 1f)
-        val endY = (startY + deltaY).coerceIn(1f, height - 1f)
+        val targetX = (centerX + deltaX).coerceIn(1f, width - 1f)
+        val targetY = (centerY + deltaY).coerceIn(1f, height - 1f)
 
-        val path = Path().apply {
-            moveTo(startX, startY)
-            lineTo(endX, endY)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val previousStroke = activeJoystickStroke
+            val nextStroke: GestureDescription.StrokeDescription = if (previousStroke != null) {
+                try {
+                    val movePath = Path().apply {
+                        moveTo(lastJoystickX, lastJoystickY)
+                        lineTo(targetX, targetY)
+                    }
+                    previousStroke.continueStroke(movePath, 0L, durationMs, willContinue)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Reiniciando stroke continuo tras interrupción: ${e.message}")
+                    val freshPath = Path().apply {
+                        moveTo(centerX, centerY)
+                        lineTo(targetX, targetY)
+                    }
+                    GestureDescription.StrokeDescription(freshPath, 0L, durationMs, willContinue)
+                }
+            } else {
+                val startPath = Path().apply {
+                    moveTo(centerX, centerY)
+                    lineTo(targetX, targetY)
+                }
+                GestureDescription.StrokeDescription(startPath, 0L, durationMs, willContinue)
+            }
+
+            lastJoystickX = targetX
+            lastJoystickY = targetY
+            activeJoystickStroke = if (willContinue) nextStroke else null
+
+            val gesture = GestureDescription.Builder().addStroke(nextStroke).build()
+            val ok = dispatchGestureSuspend(gesture)
+            if (!ok) {
+                activeJoystickStroke = null
+            }
+            return ok
+        } else {
+            val fallbackPath = Path().apply {
+                moveTo(centerX, centerY)
+                lineTo(targetX, targetY)
+            }
+            val stroke = GestureDescription.StrokeDescription(fallbackPath, 0L, durationMs)
+            return dispatchGestureSuspend(GestureDescription.Builder().addStroke(stroke).build())
         }
-        val stroke = GestureDescription.StrokeDescription(path, 0L, durationMs)
-        val gesture = GestureDescription.Builder().addStroke(stroke).build()
-        return dispatchGestureSuspend(gesture)
     }
 
     private suspend fun dispatchGestureSuspend(gesture: GestureDescription): Boolean {

@@ -65,6 +65,10 @@ class BotControlViewModel(application: Application) : AndroidViewModel(applicati
         BotStateRepository.setCollectKeyBoxes(getApplication(), enabled)
     }
 
+    fun setAttackAliens(enabled: Boolean) {
+        BotStateRepository.setAttackAliens(getApplication(), enabled)
+    }
+
     fun updateCalibration(calibration: HudCalibration) {
         BotStateRepository.updateCalibration(getApplication(), calibration)
     }

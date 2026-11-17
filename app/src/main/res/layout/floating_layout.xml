@@ -134,8 +134,20 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:buttonTint="#FF00E5FF"
+                android:checked="false"
                 android:minHeight="48dp"
                 android:text="@string/overlay_collect_key_boxes"
+                android:textColor="#FFE2E8F0"
+                android:textSize="12sp" />
+
+            <CheckBox
+                android:id="@+id/checkbox_attack_aliens"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:buttonTint="#FF00E5FF"
+                android:checked="true"
+                android:minHeight="48dp"
+                android:text="@string/overlay_attack_aliens"
                 android:textColor="#FFE2E8F0"
                 android:textSize="12sp" />
 

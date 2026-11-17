@@ -78,6 +78,7 @@ class FloatingUIService : Service() {
     private var mapSpinner: Spinner? = null
     private var alienSpinner: Spinner? = null
     private var keyBoxCheckBox: CheckBox? = null
+    private var attackAliensCheckBox: CheckBox? = null
     private var toggleBotButton: Button? = null
     private var statusTextView: TextView? = null
 
@@ -279,6 +280,7 @@ class FloatingUIService : Service() {
         mapSpinner = root.findViewById(R.id.spinner_map_target)
         alienSpinner = root.findViewById(R.id.spinner_alien_target)
         keyBoxCheckBox = root.findViewById(R.id.checkbox_collect_key_boxes)
+        attackAliensCheckBox = root.findViewById(R.id.checkbox_attack_aliens)
         toggleBotButton = root.findViewById(R.id.btn_toggle_bot)
         statusTextView = root.findViewById(R.id.tv_bot_status)
 
@@ -308,6 +310,7 @@ class FloatingUIService : Service() {
         val initialIdx = ALIEN_TARGETS.indexOf(initialState.targetAlien).coerceAtLeast(0)
         alienSpinner?.setSelection(initialIdx, false)
         keyBoxCheckBox?.isChecked = initialState.collectKeyBoxes
+        attackAliensCheckBox?.isChecked = initialState.attackAliens
 
         mapSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(
@@ -339,6 +342,10 @@ class FloatingUIService : Service() {
 
         keyBoxCheckBox?.setOnCheckedChangeListener { _, isChecked ->
             BotStateRepository.setCollectKeyBoxes(this@FloatingUIService, isChecked)
+        }
+
+        attackAliensCheckBox?.setOnCheckedChangeListener { _, isChecked ->
+            BotStateRepository.setAttackAliens(this@FloatingUIService, isChecked)
         }
 
         toggleBotButton?.setOnClickListener {
@@ -434,6 +441,7 @@ class FloatingUIService : Service() {
 
         isBotRunning = true
         activeShipConfig = 1
+        screenAnalyzer.resetState()
         BotStateRepository.setBotActive(true, "Status: Scanning screen locally (100ms)...")
         updateControlVisuals()
 
@@ -463,6 +471,7 @@ class FloatingUIService : Service() {
                             targetMap = snapshotState.targetMap,
                             targetAlien = snapshotState.targetAlien,
                             collectKeyBoxes = snapshotState.collectKeyBoxes,
+                            attackAliens = snapshotState.attackAliens,
                             currentConfig = activeShipConfig,
                         )
                     }
@@ -478,7 +487,7 @@ class FloatingUIService : Service() {
                 val statusStr = "Status: ${decision.accion.uppercase()} (Cfg ${decision.config})\n${decision.razon}"
                 statusTextView?.text = statusStr
 
-                if (decision.accion == "cambiar_config") {
+                if (decision.accion == "cambiar_config" || decision.accion == "fin_combate") {
                     activeShipConfig = decision.config
                 }
 
@@ -500,6 +509,10 @@ class FloatingUIService : Service() {
         isBotRunning = false
         botLoopJob?.cancel()
         botLoopJob = null
+        screenAnalyzer.resetState()
+        serviceScope.launch {
+            BotAccessibilityService.instance?.releaseContinuousJoystick()
+        }
         BotStateRepository.setBotActive(false, reason)
         statusTextView?.text = reason
         updateControlVisuals()

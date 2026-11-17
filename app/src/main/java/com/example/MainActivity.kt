@@ -403,6 +403,42 @@ fun NovabornControlDeck(
                                 ),
                             )
                         }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(TacticalSurfaceElevated)
+                                .clickable {
+                                    viewModel.setAttackAliens(!botState.attackAliens)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Attack Aliens",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = "Disable for Pacifist/Farming mode (ignores aliens, farms boxes only).",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextSecondary,
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Switch(
+                                checked = botState.attackAliens,
+                                onCheckedChange = { viewModel.setAttackAliens(it) },
+                                modifier = Modifier.testTag("switch_attack_aliens"),
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = DeepSpaceNavy,
+                                    checkedTrackColor = ElectricCyan,
+                                ),
+                            )
+                        }
                     }
                 }
 
@@ -873,7 +909,7 @@ private fun TelemetryStatusCard(botState: BotRuntimeState) {
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = "atacar=${decision.atacar} | recoger=${decision.recoger} | esperar_caja_llave=${decision.esperarCajaLlave}",
+                            text = "tapAttackOnce=${decision.tapAttackOnce} | willContinue=${decision.willContinue} | waitKey=${decision.esperarCajaLlave}",
                             style = MaterialTheme.typography.labelMedium,
                             color = TextSecondary,
                         )
