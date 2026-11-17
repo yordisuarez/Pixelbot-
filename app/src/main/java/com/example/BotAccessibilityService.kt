@@ -14,9 +14,9 @@ class BotAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "BotAccessibilitySvc"
-        private const val TAP_DURATION_MS = 65L
-        private const val JOYSTICK_SWIPE_DURATION_MS = 320L
-        private const val ORBIT_SWIPE_DURATION_MS = 460L
+        private const val TAP_DURATION_MS = 45L
+        private const val JOYSTICK_SWIPE_DURATION_MS = 140L
+        private const val ORBIT_SWIPE_DURATION_MS = 180L
         private const val KEY_BOX_WAIT_MS = 3200L
 
         @Volatile

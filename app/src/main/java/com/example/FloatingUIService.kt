@@ -55,7 +55,7 @@ class FloatingUIService : Service() {
         private const val TAG = "FloatingUIService"
         private const val CHANNEL_ID = "novaborn_bot_hud_channel"
         private const val NOTIFICATION_ID = 1042
-        private const val LOOP_INTERVAL_MS = 1500L
+        private const val LOOP_INTERVAL_MS = 100L
 
         const val ACTION_START = "com.example.action.START_FLOATING_HUD"
         const val ACTION_STOP = "com.example.action.STOP_FLOATING_HUD"
@@ -65,7 +65,8 @@ class FloatingUIService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val geminiClient = GeminiApiClient()
+    private val screenAnalyzer = LocalScreenAnalyzer()
+    private var activeShipConfig: Int = 1
 
     private lateinit var windowManager: WindowManager
     private var overlayView: View? = null
@@ -406,7 +407,8 @@ class FloatingUIService : Service() {
         }
 
         isBotRunning = true
-        BotStateRepository.setBotActive(true, "Status: Analyzing screen with Gemini...")
+        activeShipConfig = 1
+        BotStateRepository.setBotActive(true, "Status: Scanning screen locally (100ms)...")
         updateControlVisuals()
 
         botLoopJob = serviceScope.launch {
@@ -428,14 +430,13 @@ class FloatingUIService : Service() {
                 }
 
                 val snapshotState = BotStateRepository.state.value
-                updateStatusText("Status: Querying Gemini (${snapshotState.targetAlien})...")
-
-                val result = try {
-                    withContext(Dispatchers.IO) {
-                        geminiClient.analyzeFrame(
+                val decision = try {
+                    withContext(Dispatchers.Default) {
+                        screenAnalyzer.analyzeFrame(
                             frame = frameBitmap,
                             targetAlien = snapshotState.targetAlien,
                             collectKeyBoxes = snapshotState.collectKeyBoxes,
+                            currentConfig = activeShipConfig,
                         )
                     }
                 } finally {
@@ -446,28 +447,22 @@ class FloatingUIService : Service() {
 
                 if (!isActive || !isBotRunning) break
 
-                result.fold(
-                    onSuccess = { decision ->
-                        BotStateRepository.recordDecision(decision)
-                        val statusStr = "Status: ${decision.accion.uppercase()} (Cfg ${decision.config})\n${decision.razon}"
-                        statusTextView?.text = statusStr
+                BotStateRepository.recordDecision(decision)
+                val statusStr = "Status: ${decision.accion.uppercase()} (Cfg ${decision.config})\n${decision.razon}"
+                statusTextView?.text = statusStr
 
-                        val extraDelayMs = accessibility.executeDecision(
-                            decision = decision,
-                            calibration = snapshotState.calibration,
-                        )
-                        if (extraDelayMs > 0L) {
-                            updateStatusText("Status: Opening key box (waiting 3.2s)...")
-                            delay(extraDelayMs)
-                        }
-                    },
-                    onFailure = { error ->
-                        if (error is CancellationException) throw error
-                        val msg = error.localizedMessage ?: "Gemini analysis error"
-                        Log.e(TAG, "Bot loop error: $msg", error)
-                        updateStatusText("Status: AI Error - $msg", error = msg)
-                    },
+                if (decision.accion == "cambiar_config") {
+                    activeShipConfig = decision.config
+                }
+
+                val extraDelayMs = accessibility.executeDecision(
+                    decision = decision,
+                    calibration = snapshotState.calibration,
                 )
+                if (extraDelayMs > 0L) {
+                    updateStatusText("Status: Opening key box (waiting 3.2s)...")
+                    delay(extraDelayMs)
+                }
 
                 delay(LOOP_INTERVAL_MS)
             }

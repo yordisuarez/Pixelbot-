@@ -110,9 +110,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Configure Firebase App Check before UI or ViewModels initialize
-        configureAppCheck(this, intent)
-
         enableEdgeToEdge()
         setContent {
             NovabornBotTheme {
@@ -172,7 +169,7 @@ fun NovabornControlDeck(
             } else {
                 BotStateRepository.updateStatus(
                     message = "Screen capture cancelled",
-                    error = "MediaProjection permission is required so Gemini can analyze the game screen.",
+                    error = "MediaProjection permission is required to scan the game screen locally.",
                 )
             }
         },
@@ -443,7 +440,7 @@ private fun HeroBannerCard(
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
                             Text(
-                                text = "Pixel Universe: Novaborn • Gemini 3.8 Vision",
+                                text = "Pixel Universe: Novaborn • Offline Pixel Engine",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = ElectricCyan,
                             )
@@ -460,7 +457,7 @@ private fun HeroBannerCard(
                         color = if (isOverlayRunning) EmeraldReady else TextSecondary,
                     )
                     StatusBadge(
-                        label = if (isBotActive) "AI COMBAT" else "STANDBY",
+                        label = if (isBotActive) "LOCAL BOT ON" else "STANDBY",
                         color = if (isBotActive) ElectricCyan else AmberAlert,
                     )
                     StatusBadge(
@@ -813,7 +810,7 @@ private fun TelemetryStatusCard(botState: BotRuntimeState) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = "Gemini Vision Telemetry",
+                text = "Local Pixel Vision Telemetry",
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
