@@ -35,5 +35,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bot-novaborn-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
           if-no-files-found: error
